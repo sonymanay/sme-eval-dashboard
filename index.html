@@ -1,0 +1,1998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SME Eval Reviewer Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --ms-blue: #0078D4;
+      --ms-green: #107C10;
+      --ms-red: #D13438;
+      --ms-orange: #FF8C00;
+      --ms-purple: #8661C5;
+      --ms-teal: #038387;
+      --ms-dark: #1B1B1F;
+      --ms-light: #F3F2F1;
+      --border: #E1DFDD;
+      --text: #323130;
+      --muted: #605E5C;
+      --warn: #FFB900;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #F7F9FC;
+      color: var(--text);
+    }
+
+    .top-header {
+      background: linear-gradient(135deg, #0078D4, #005A9E);
+      color: white;
+      padding: 24px 32px 18px;
+    }
+
+    .header-row {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .header-title h1 {
+      margin: 0;
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    .header-title p {
+      margin: 6px 0 0;
+      opacity: 0.92;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .tab-nav {
+      background: white;
+      border-bottom: 1px solid var(--border);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .tab-nav-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 0 32px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      border-bottom: 3px solid transparent;
+      padding: 14px 4px 11px;
+      cursor: pointer;
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .tab-btn.active {
+      color: var(--ms-blue);
+      border-bottom-color: var(--ms-blue);
+    }
+
+    .dashboard-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px 32px 40px;
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    .fade-in { animation: fadeIn 0.22s ease; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .card, .chart-card, .table-card, .upload-card, .tree-card, .queue-card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .grid-5, .grid-4, .grid-3, .grid-2 {
+      display: grid;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .grid-5 { grid-template-columns: repeat(5, 1fr); }
+    .grid-4 { grid-template-columns: repeat(4, 1fr); }
+    .grid-3 { grid-template-columns: repeat(3, 1fr); }
+    .grid-2 { grid-template-columns: repeat(2, 1fr); }
+
+    .kpi-card {
+      padding: 18px;
+      border-left: 4px solid var(--ms-blue);
+      text-align: center;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .kpi-label {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+
+    .kpi-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--ms-dark);
+    }
+
+    .kpi-sub {
+      margin-top: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .section-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin: 24px 0 12px;
+      flex-wrap: wrap;
+    }
+
+    .section-title h2, .section-title h3 {
+      margin: 0;
+      font-size: 20px;
+      color: var(--ms-dark);
+    }
+
+    .chart-card, .table-card, .tree-card, .queue-card, .upload-card {
+      padding: 18px;
+      margin-bottom: 20px;
+    }
+
+    .chart-title {
+      font-weight: 700;
+      margin-bottom: 14px;
+      color: var(--ms-dark);
+    }
+
+    .chart-card canvas { width: 100% !important; height: 320px !important; }
+    .chart-card.full canvas { height: 360px !important; }
+    .chart-card.short canvas { height: 260px !important; }
+
+    .filter-bar, .info-bar, .snapshot-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 16px;
+      padding: 14px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .info-note {
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: #EEF6FC;
+      color: #004578;
+      margin-bottom: 16px;
+      font-size: 13px;
+    }
+
+    label.inline-label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    input[type="text"], input[type="url"], select, textarea {
+      border: 1px solid #C8C6C4;
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-family: inherit;
+      font-size: 14px;
+      background: white;
+      color: var(--text);
+    }
+
+    textarea { min-height: 92px; resize: vertical; }
+    .btn {
+      border: none;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.15s ease;
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .btn-primary { background: var(--ms-blue); color: white; }
+    .btn-success { background: var(--ms-green); color: white; }
+    .btn-danger { background: var(--ms-red); color: white; }
+    .btn-secondary { background: #EDEBE9; color: var(--text); }
+    .btn-purple { background: var(--ms-purple); color: white; }
+    .btn-orange { background: var(--ms-orange); color: white; }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .data-table th {
+      background: #F3F2F1;
+      color: var(--muted);
+      text-transform: uppercase;
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      padding: 12px 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .data-table td {
+      padding: 11px 10px;
+      border-bottom: 1px solid #EFEFEF;
+      vertical-align: top;
+    }
+
+    .data-table tr:hover td { background: #FAFAFA; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .badge.pass { background: #DFF6DD; color: #0B6A0B; }
+    .badge.fail { background: #FDE7E9; color: #A4262C; }
+    .badge.warn, .badge.p1 { background: #FFF4CE; color: #8A6D00; }
+    .badge.p0 { background: #FDE7E9; color: #A4262C; }
+    .badge.p2 { background: #FFF4CE; color: #8A6D00; }
+
+    .upload-wrap {
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 24px 40px;
+    }
+
+    .upload-card {
+      text-align: center;
+      padding: 48px 24px;
+      border: 2px dashed #C8C6C4;
+      background: linear-gradient(180deg, #FFFFFF, #FAFCFF);
+    }
+
+    .upload-icon { font-size: 52px; margin-bottom: 12px; }
+    .upload-card h2 { margin: 0 0 8px; }
+    .upload-card p { color: var(--muted); max-width: 680px; margin: 0 auto 18px; }
+
+    .mini-stat {
+      display: inline-flex;
+      margin: 8px 8px 0;
+      padding: 8px 12px;
+      background: #F3F2F1;
+      border-radius: 999px;
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .muted { color: var(--muted); }
+    .small { font-size: 12px; }
+
+    .sme-card {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      background: white;
+    }
+    .sme-card:hover {
+      border-color: var(--ms-blue);
+      box-shadow: 0 2px 8px rgba(0,120,212,0.1);
+    }
+    .sme-card.reviewed {
+      border-left: 4px solid var(--ms-green);
+      opacity: 0.85;
+    }
+    .sme-card.expanded {
+      border-color: var(--ms-blue);
+      box-shadow: 0 4px 16px rgba(0,120,212,0.15);
+    }
+    .sme-card-header {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      padding: 14px 16px;
+      cursor: pointer;
+      background: white;
+    }
+    .sme-question {
+      flex: 1;
+      min-width: 220px;
+      font-weight: 600;
+    }
+    .sme-card-body {
+      padding: 20px;
+      display: none;
+      border-top: 1px solid #E8E8E8;
+      background: #FBFBFB;
+    }
+    .sme-card.expanded .sme-card-body { display: block; }
+
+    .response-box {
+      border-left: 4px solid var(--ms-purple);
+      background: #F6F2FB;
+      padding: 14px;
+      border-radius: 6px;
+      max-height: 120px;
+      overflow: auto;
+      margin-bottom: 16px;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .meta-pill {
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+    }
+
+    .meta-pill strong {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 4px;
+      letter-spacing: 0.04em;
+    }
+
+    .sme-form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    .sme-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+
+    .saved-indicator {
+      display: inline-block;
+      color: var(--ms-green);
+      font-weight: 700;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+    }
+    .saved-indicator.show { opacity: 1; }
+
+    .queue-card h3 { margin: 0 0 16px; }
+
+    .tree-node {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 10px;
+      overflow: hidden;
+    }
+
+    .tree-label {
+      padding: 12px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      background: white;
+      font-weight: 600;
+    }
+
+    .tree-node .tree-children {
+      display: none;
+      padding: 10px 14px 14px;
+      background: #FBFBFB;
+    }
+    .tree-node.open > .tree-children { display: block; }
+
+    .leaf {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px dashed #E8E8E8;
+      font-size: 14px;
+    }
+    .leaf:last-child { border-bottom: none; }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 8px;
+    }
+
+    .checklist {
+      display: grid;
+      gap: 10px;
+    }
+
+    .check-item {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: white;
+    }
+
+    .icon-pass { color: var(--ms-green); font-weight: 700; }
+    .icon-pending { color: var(--ms-orange); font-weight: 700; }
+
+    .snapshot-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .snapshot-chip {
+      background: #EEF6FC;
+      color: #004578;
+      padding: 8px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 1100px) {
+      .grid-5 { grid-template-columns: repeat(2, 1fr); }
+      .grid-4, .grid-3, .grid-2, .meta-grid, .sme-form-row { grid-template-columns: 1fr; }
+      .sme-card-header { flex-wrap: wrap; }
+    }
+
+    @media (max-width: 720px) {
+      .dashboard-container, .top-header { padding-left: 16px; padding-right: 16px; }
+      .tab-nav-inner { padding: 0 16px; }
+      .header-row { align-items: flex-start; }
+      .grid-5 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header class="top-header">
+    <div class="header-row">
+      <div class="header-title">
+        <h1>SME Eval Reviewer Dashboard</h1>
+        <p>Comprehensive grading workspace for LLM evaluation, calibration, review, trends, and export workflows.</p>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-secondary" id="importBtnTop">📂 Import Excel</button>
+        <button class="btn btn-purple" id="exportJsonlBtn" disabled>🤖 Fine-tuning JSONL</button>
+        <button class="btn btn-orange" id="exportXlsxBtn" disabled>📥 Export XLSX</button>
+      </div>
+    </div>
+  </header>
+
+  <div id="uploadScreen" class="upload-wrap">
+    <div class="upload-card">
+      <div class="upload-icon">📄</div>
+      <h2>Import SME evaluation workbook</h2>
+      <p>Upload a .xlsx file containing prompts, LLM responses, NRT scores, RTS, GDS coverage fields, and reviewer metadata. All charts, tabs, and reviewer workflows compute dynamically from the imported dataset.</p>
+      <button class="btn btn-primary" id="importBtn">Import Excel File</button>
+      <div>
+        <span class="mini-stat">Columns expected: prompt, SBU, PCY, LOB, CaseID</span>
+        <span class="mini-stat">Review storage: localStorage / sme-reviews-v4</span>
+        <span class="mini-stat">Trend storage: localStorage / sme-weekly-history-v2</span>
+      </div>
+    </div>
+  </div>
+
+  <input type="file" id="fileInput" accept=".xlsx,.xls" class="hidden" />
+
+  <div id="dashboard" class="hidden">
+    <nav class="tab-nav">
+      <div class="tab-nav-inner">
+        <button class="tab-btn active" data-tab="exec">📊 Executive Summary</button>
+        <button class="tab-btn" data-tab="failure">🔍 Failure Analysis</button>
+        <button class="tab-btn" data-tab="trends">📈 Run-Over-Run Trends</button>
+        <button class="tab-btn" data-tab="calibration">⚖️ LLM Calibration</button>
+        <button class="tab-btn" data-tab="signal">🌳 Signal Tree</button>
+        <button class="tab-btn" data-tab="sme">👥 SME Review</button>
+        <button class="tab-btn" data-tab="gds">📋 GDS Coverage</button>
+        <button class="tab-btn" data-tab="gaps">⚠️ Gaps & Actions</button>
+      </div>
+    </nav>
+
+    <main class="dashboard-container">
+      <section id="tab-exec" class="tab-panel active fade-in">
+        <div class="grid-5" id="execKpis"></div>
+        <div class="filter-bar">
+          <label class="inline-label">LOB Filter<select id="execLobFilter"></select></label>
+          <label class="inline-label">PCY Filter<select id="execPcyFilter"></select></label>
+          <span class="muted small" id="execScopeLabel"></span>
+        </div>
+        <div class="grid-2">
+          <div class="chart-card">
+            <div class="chart-title">Pass Rate by SBU</div>
+            <canvas id="sbuPassChart"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Top Failure Themes</div>
+            <canvas id="failureThemesChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card full">
+          <div class="chart-title">PCY-Level Performance Breakdown</div>
+          <canvas id="pcyPerformanceChart"></canvas>
+        </div>
+        <div class="chart-card full">
+          <div class="chart-title">Accuracy Trend</div>
+          <canvas id="accuracyTrendChart"></canvas>
+        </div>
+      </section>
+
+      <section id="tab-failure" class="tab-panel">
+        <div class="filter-bar">
+          <label class="inline-label">SBU<select id="failureSbuFilter"></select></label>
+          <label class="inline-label">Category<select id="failureCategoryFilter"></select></label>
+        </div>
+        <div class="grid-2">
+          <div class="chart-card">
+            <div class="chart-title">Failure Pareto Chart</div>
+            <canvas id="paretoChart"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Failure Distribution by SBU</div>
+            <canvas id="failureSbuChart"></canvas>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="chart-title">Failure Detail Table</div>
+          <table class="data-table">
+            <thead>
+              <tr><th>#</th><th>SBU</th><th>PCY</th><th>Question</th><th>Failure Category</th><th>RTS Score</th><th>Priority</th></tr>
+            </thead>
+            <tbody id="failureTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="tab-trends" class="tab-panel">
+        <div class="snapshot-bar">
+          <label class="inline-label">Snapshot Label<input type="text" id="snapshotLabel" placeholder="e.g. Week 24 - 2025-06-14" /></label>
+          <button class="btn btn-success" id="saveSnapshotBtn">💾 Save Weekly Snapshot</button>
+          <button class="btn btn-secondary" id="clearSnapshotsBtn">Clear Snapshots</button>
+          <span class="muted small">Weekly snapshots are persisted in localStorage under <strong>sme-weekly-history-v2</strong>.</span>
+        </div>
+        <div class="snapshot-list" id="snapshotList"></div>
+        <div class="grid-2">
+          <div class="chart-card">
+            <div class="chart-title">Overall Accuracy Across Runs</div>
+            <canvas id="overallTrendChart"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Per-SBU Trend Lines</div>
+            <canvas id="sbuTrendChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card full">
+          <div class="chart-title">Failure Category Shift</div>
+          <canvas id="failureShiftChart"></canvas>
+        </div>
+        <div class="table-card">
+          <div class="chart-title">Regression &amp; Fix Tracking</div>
+          <table class="data-table">
+            <thead>
+              <tr><th>Run Pair</th><th>Improved</th><th>Regressed</th><th>Unchanged</th><th>Net Δ</th><th>Status</th></tr>
+            </thead>
+            <tbody id="regressionTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="tab-calibration" class="tab-panel">
+        <div class="grid-2">
+          <div class="chart-card">
+            <div class="chart-title">LLM Judge Score Distributions</div>
+            <canvas id="judgeDistributionChart"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">Metric Discrimination Power</div>
+            <canvas id="discriminationChart"></canvas>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="chart-title">LLM Judge vs. SME Agreement Matrix</div>
+          <table class="data-table">
+            <thead>
+              <tr><th>Metric</th><th>Count</th><th>Description</th></tr>
+            </thead>
+            <tbody id="agreementMatrixBody"></tbody>
+          </table>
+        </div>
+        <div class="table-card">
+          <div class="chart-title">Key Disagreements</div>
+          <table class="data-table">
+            <thead>
+              <tr><th>Question</th><th>LLM Judge</th><th>SME</th><th>RTS</th><th>Comments</th></tr>
+            </thead>
+            <tbody id="disagreementTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="tab-signal" class="tab-panel">
+        <div class="grid-2">
+          <div class="tree-card">
+            <div class="chart-title">Signal Tree</div>
+            <div class="tree-node open" id="tree-root">
+              <div class="tree-label" onclick="toggleTree('tree-root')">
+                <span>Response Quality</span>
+                <span id="treeResponseQuality">0%</span>
+              </div>
+              <div class="tree-children">
+                <div class="tree-node" id="tree-retrieval">
+                  <div class="tree-label" onclick="toggleTree('tree-retrieval')"><span>Retrieval Quality</span><span id="treeRetrieval">0%</span></div>
+                  <div class="tree-children">
+                    <div class="leaf"><span>Correct Retrieval</span><strong id="leafCorrectRetrieval">0%</strong></div>
+                    <div class="leaf"><span>Groundedness</span><strong id="leafGroundedness">0%</strong></div>
+                  </div>
+                </div>
+                <div class="tree-node" id="tree-generation">
+                  <div class="tree-label" onclick="toggleTree('tree-generation')"><span>Generation Quality</span><span id="treeGeneration">0%</span></div>
+                  <div class="tree-children">
+                    <div class="leaf"><span>Coherence</span><strong id="leafCoherence">0%</strong></div>
+                    <div class="leaf"><span>Fluency</span><strong id="leafFluency">0%</strong></div>
+                  </div>
+                </div>
+                <div class="tree-node" id="tree-content">
+                  <div class="tree-label" onclick="toggleTree('tree-content')"><span>Content Coverage</span><span id="treeContent">0%</span></div>
+                  <div class="tree-children">
+                    <div class="leaf"><span>Expected Answer Coverage</span><strong id="leafExpectedCoverage">0%</strong></div>
+                    <div class="leaf"><span>Relevance</span><strong id="leafRelevance">0%</strong></div>
+                  </div>
+                </div>
+                <div class="tree-node" id="tree-impact">
+                  <div class="tree-label" onclick="toggleTree('tree-impact')"><span>User Impact</span><span id="treeImpact">0%</span></div>
+                  <div class="tree-children">
+                    <div class="leaf"><span>Intent Resolution</span><strong id="leafIntent">0%</strong></div>
+                    <div class="leaf"><span>Overall Pass Rate</span><strong id="leafOverallPass">0%</strong></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="chart-card short">
+              <div class="chart-title">Signal Contribution</div>
+              <canvas id="signalRadarChart"></canvas>
+            </div>
+            <div class="chart-card short">
+              <div class="chart-title">Current vs Target Scores</div>
+              <canvas id="signalTargetChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-sme" class="tab-panel">
+        <div class="grid-4" id="smeKpis"></div>
+        <div class="info-bar">
+          <label class="inline-label">Reviewer Name<input type="text" id="reviewerName" placeholder="Enter reviewer name" /></label>
+          <label class="inline-label">SBU Filter<select id="smeSbuFilter"></select></label>
+          <label class="inline-label">PCY Filter<select id="smePcyFilter"></select></label>
+          <label class="inline-label">Priority Filter<select id="smePriorityFilter"></select></label>
+          <label class="inline-label">Status Filter<select id="smeStatusFilter"></select></label>
+          <button class="btn btn-secondary" id="exportReviewsBtn">📥 Export Reviews (CSV)</button>
+        </div>
+        <div class="info-note">Keyboard shortcuts on this tab: <strong>1</strong>=Pass, <strong>2</strong>=Fail-Retrieval, <strong>3</strong>=Borderline. Only one card is expandable at a time; Save &amp; Next persists the review, opens the next item, and scrolls into view.</div>
+        <div class="grid-2">
+          <div class="chart-card short">
+            <div class="chart-title">SME Review Coverage by SBU</div>
+            <canvas id="smeCoverageChart"></canvas>
+          </div>
+          <div class="chart-card short">
+            <div class="chart-title">SME Review Failure Taxonomy</div>
+            <canvas id="smeTaxonomyChart"></canvas>
+          </div>
+        </div>
+        <div class="queue-card">
+          <h3>📝 SME Review Queue — Click a row to provide feedback</h3>
+          <div id="smeQueue"></div>
+        </div>
+      </section>
+
+      <section id="tab-gds" class="tab-panel">
+        <div class="grid-5" id="gdsKpis"></div>
+        <div class="filter-bar">
+          <label class="inline-label">LOB Filter<select id="gdsLobFilter"></select></label>
+        </div>
+        <div class="grid-2">
+          <div class="chart-card">
+            <div class="chart-title">GDS Coverage by LOB</div>
+            <canvas id="gdsLobChart"></canvas>
+          </div>
+          <div class="chart-card">
+            <div class="chart-title">GDS Completeness</div>
+            <canvas id="gdsCompletenessChart"></canvas>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="chart-title">PCY-Level Coverage</div>
+          <table class="data-table">
+            <thead>
+              <tr><th>LOB</th><th>PCY</th><th>Current Prompts</th><th>With Expected Answers</th><th>With Articles</th><th>Coverage %</th></tr>
+            </thead>
+            <tbody id="gdsCoverageTableBody"></tbody>
+          </table>
+        </div>
+        <div class="table-card">
+          <div class="chart-title">GDS Curation Requirements</div>
+          <table class="data-table">
+            <thead>
+              <tr><th>Requirement</th><th>Description</th><th>Owner</th><th>SLA</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Expected Answer Coverage</td><td>Every prompt should have a complete expected response authored or curated by SMEs.</td><td>Knowledge Engineering</td><td>48 hrs</td></tr>
+              <tr><td>Article Citation Grounding</td><td>Include KB article URLs or source references for response provenance validation.</td><td>Content Ops</td><td>72 hrs</td></tr>
+              <tr><td>Prompt Completeness</td><td>Ensure prompt metadata contains LOB, PCY, SBU, and CaseID for traceability.</td><td>Eval Ops</td><td>24 hrs</td></tr>
+              <tr><td>Review Closure</td><td>P0 / P1 cases require SME final verdict and corrective answer before handoff.</td><td>TA Reviewer</td><td>24 hrs</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="tab-gaps" class="tab-panel">
+        <div class="chart-card full">
+          <div class="chart-title">Gap Severity</div>
+          <canvas id="gapSeverityChart"></canvas>
+        </div>
+        <div class="table-card">
+          <div class="chart-title">Implementation Checklist</div>
+          <div class="checklist" id="implementationChecklist"></div>
+        </div>
+        <div class="table-card">
+          <div class="chart-title">Gap Analysis</div>
+          <table class="data-table">
+            <thead>
+              <tr><th>Gap</th><th>Impact</th><th>Recommended Fix</th><th>Owner</th><th>Status</th></tr>
+            </thead>
+            <tbody id="gapAnalysisBody"></tbody>
+          </table>
+        </div>
+        <div class="table-card">
+          <div class="chart-title">Delivery SLAs</div>
+          <table class="data-table">
+            <thead>
+              <tr><th>Workstream</th><th>Target</th><th>Escalation Rule</th><th>Owner</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>P0 Review Closure</td><td>Same business day</td><td>Escalate if unresolved &gt; 8 hrs</td><td>SME Lead</td></tr>
+              <tr><td>P1 Review Closure</td><td>24 hrs</td><td>Escalate if unresolved &gt; 2 days</td><td>TA Reviewer</td></tr>
+              <tr><td>Expected Answer Backfill</td><td>72 hrs</td><td>Escalate if coverage remains below 90%</td><td>Knowledge Manager</td></tr>
+              <tr><td>Weekly Snapshot Publication</td><td>Every Friday</td><td>Escalate if no snapshot saved for current week</td><td>Eval Ops</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const LS_REVIEWS = 'sme-reviews-v4';
+    const LS_HISTORY = 'sme-weekly-history-v2';
+    const LS_REVIEWER = 'sme-reviewer-name-v1';
+    const state = {
+      rows: [],
+      charts: {},
+      reviews: loadJson(LS_REVIEWS, {}),
+      history: loadJson(LS_HISTORY, []),
+      activeTab: 'exec',
+      expandedCard: null,
+      flashSavedUid: null,
+      currentFileName: ''
+    };
+
+    document.addEventListener('DOMContentLoaded', init);
+
+    function init() {
+      document.getElementById('importBtn').addEventListener('click', () => document.getElementById('fileInput').click());
+      document.getElementById('importBtnTop').addEventListener('click', () => document.getElementById('fileInput').click());
+      document.getElementById('fileInput').addEventListener('change', handleFileImport);
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => switchTab(btn.dataset.tab)));
+      document.getElementById('exportJsonlBtn').addEventListener('click', exportFineTuneJsonl);
+      document.getElementById('exportXlsxBtn').addEventListener('click', exportWorkbook);
+      document.getElementById('exportReviewsBtn').addEventListener('click', exportReviewsCsv);
+      document.getElementById('saveSnapshotBtn').addEventListener('click', saveCurrentSnapshot);
+      document.getElementById('clearSnapshotsBtn').addEventListener('click', clearSnapshots);
+      document.getElementById('reviewerName').value = localStorage.getItem(LS_REVIEWER) || '';
+      document.getElementById('reviewerName').addEventListener('input', (e) => localStorage.setItem(LS_REVIEWER, e.target.value));
+
+      ['execLobFilter','execPcyFilter','failureSbuFilter','failureCategoryFilter','smeSbuFilter','smePcyFilter','smePriorityFilter','smeStatusFilter','gdsLobFilter']
+        .forEach(id => document.getElementById(id).addEventListener('change', () => renderAll()));
+      document.getElementById('smeSbuFilter').addEventListener('change', updateSmePcyOptions);
+      document.getElementById('execLobFilter').addEventListener('change', updateExecPcyOptions);
+
+      document.addEventListener('keydown', handleSmeHotkeys);
+      renderSnapshotList();
+    }
+
+    function loadJson(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
+      } catch (err) {
+        return fallback;
+      }
+    }
+
+    function saveJson(key, value) {
+      localStorage.setItem(key, JSON.stringify(value));
+    }
+
+    async function handleFileImport(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const arrayBuffer = await file.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      const rows = XLSX.utils.sheet_to_json(workbook.Sheets[firstSheetName], { defval: '' });
+      state.rows = rows.map(mapRow).filter(r => r.prompt || r.llmPlain || r.llmHtml);
+      state.currentFileName = file.name;
+      state.expandedCard = null;
+      document.getElementById('snapshotLabel').value = defaultSnapshotLabel();
+      showDashboard();
+      populateFilters();
+      renderAll();
+      event.target.value = '';
+    }
+
+    function showDashboard() {
+      document.getElementById('uploadScreen').classList.add('hidden');
+      document.getElementById('dashboard').classList.remove('hidden');
+      document.getElementById('exportJsonlBtn').disabled = !state.rows.length;
+      document.getElementById('exportXlsxBtn').disabled = !state.rows.length;
+    }
+
+    function normalizeHeader(value) {
+      return String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    }
+
+    function normalizeMetric(value) {
+      const n = parseFloat(String(value).replace(/,/g, '').replace('%', '').trim());
+      if (Number.isNaN(n)) return null;
+      if (String(value).includes('%')) return n / 100;
+      if (n > 1 && n <= 5) return n / 5;
+      if (n > 5) return n / 100;
+      return n;
+    }
+
+    function toFlag(value) {
+      const v = String(value ?? '').trim().toLowerCase();
+      if (['1','true','yes','y','pass','good'].includes(v)) return 1;
+      if (['0','false','no','n','fail','not good','bad'].includes(v)) return 0;
+      return null;
+    }
+
+    function nonEmpty(value) {
+      return value !== null && value !== undefined && String(value).trim() !== '';
+    }
+
+    function mapRow(row, index) {
+      const lookup = {};
+      Object.keys(row).forEach(key => lookup[normalizeHeader(key)] = row[key]);
+      const pick = (...names) => {
+        for (const name of names) {
+          const val = lookup[normalizeHeader(name)];
+          if (val !== undefined && val !== null && String(val).trim() !== '') return val;
+        }
+        return '';
+      };
+      const caseId = String(pick('CaseID', 'Case Id', 'Case')).trim() || `Q-${String(index + 1).padStart(3, '0')}`;
+      return {
+        uid: `${caseId}__${index + 1}`,
+        rowIndex: index + 1,
+        caseId,
+        displayId: caseId.startsWith('Q-') ? caseId : caseId,
+        prompt: String(pick('prompt', 'question')).trim(),
+        lob: String(pick('LOB')).trim() || 'Unknown',
+        pcy: String(pick('PCY')).trim() || 'Unknown',
+        sbu: String(pick('SBU')).trim() || 'Unknown',
+        llmHtml: String(pick('LLM Response with HTML', 'LLM Response')).trim(),
+        llmPlain: String(pick('CPH/LLM answer (without Citations)', 'CPH LLM answer without Citations', 'LLM Answer without Citations')).trim(),
+        relevance: normalizeMetric(pick('NRT_Quality_Relevance Score')),
+        coherence: normalizeMetric(pick('NRT_Quality_Coherence Score')),
+        fluency: normalizeMetric(pick('NRT_Quality_Fluency Score')),
+        intentResolution: normalizeMetric(pick('NRT_Quality_IntentResolution Score')),
+        rts: normalizeMetric(pick('rts (LLM score)', 'rts LLM score', 'RTS')),
+        accurateFlag: toFlag(pick('accurate_flag')),
+        apologyScore: String(pick('ApologyScore_Classification')).trim(),
+        gdsAnswer: String(pick('GDS Answer')).trim(),
+        articlesExpected: String(pick('Articles Expected')).trim(),
+        expectedResponse: String(pick('Expected Response')).trim(),
+        sourceArticles: String(pick('Source Articles/URLs', 'Source Articles URLs')).trim(),
+        answerQuality: String(pick('Answer Quality (Good/Not Good)', 'Answer Quality')).trim(),
+        taReviewer: String(pick('TA Reviewer')).trim(),
+        comments: String(pick('Comments')).trim()
+      };
+    }
+
+    function populateFilters() {
+      updateExecPcyOptions();
+      updateSmePcyOptions();
+      setSelectOptions('failureSbuFilter', uniq(state.rows.map(r => r.sbu)), getValue('failureSbuFilter'), 'All SBUs');
+      setSelectOptions('failureCategoryFilter', uniq(state.rows.map(getFailureCategory).filter(Boolean).filter(v => v !== 'Pass')), getValue('failureCategoryFilter'), 'All Categories');
+      setSelectOptions('smePriorityFilter', ['P0','P1','P2'], getValue('smePriorityFilter'), 'All Priorities');
+      setSelectOptions('smeStatusFilter', ['Reviewed','Unreviewed'], getValue('smeStatusFilter'), 'All Status');
+      setSelectOptions('gdsLobFilter', uniq(state.rows.map(r => r.lob)), getValue('gdsLobFilter'), 'All LOBs');
+    }
+
+    function updateExecPcyOptions() {
+      const selectedLob = getValue('execLobFilter');
+      setSelectOptions('execLobFilter', uniq(state.rows.map(r => r.lob)), selectedLob, 'All LOBs');
+      const pcyValues = uniq(state.rows.filter(r => !selectedLob || r.lob === selectedLob).map(r => r.pcy));
+      setSelectOptions('execPcyFilter', pcyValues, getValue('execPcyFilter'), 'All PCYs');
+    }
+
+    function updateSmePcyOptions() {
+      const selectedSbu = getValue('smeSbuFilter');
+      setSelectOptions('smeSbuFilter', uniq(state.rows.map(r => r.sbu)), selectedSbu, 'All SBUs');
+      const pcyValues = uniq(state.rows.filter(r => !selectedSbu || r.sbu === selectedSbu).map(r => r.pcy));
+      setSelectOptions('smePcyFilter', pcyValues, getValue('smePcyFilter'), 'All PCYs');
+    }
+
+    function setSelectOptions(id, options, selected, allLabel) {
+      const select = document.getElementById(id);
+      const current = selected && options.includes(selected) ? selected : '';
+      const html = [`<option value="">${allLabel}</option>`]
+        .concat(options.sort((a,b) => String(a).localeCompare(String(b))).map(opt => `<option value="${escapeAttr(opt)}" ${current === opt ? 'selected' : ''}>${escapeHtml(opt)}</option>`));
+      select.innerHTML = html.join('');
+      if (current) select.value = current;
+    }
+
+    function renderAll() {
+      if (!state.rows.length) return;
+      populateFilters();
+      renderExecutive();
+      renderFailureAnalysis();
+      renderTrends();
+      renderCalibration();
+      renderSignalTree();
+      renderSmeTab();
+      renderGdsCoverage();
+      renderGaps();
+      document.getElementById('exportJsonlBtn').disabled = false;
+      document.getElementById('exportXlsxBtn').disabled = false;
+    }
+
+    function switchTab(tab) {
+      state.activeTab = tab;
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+      document.querySelectorAll('.tab-panel').forEach(panel => {
+        panel.classList.remove('active', 'fade-in');
+        if (panel.id === `tab-${tab}`) {
+          panel.classList.add('active', 'fade-in');
+        }
+      });
+    }
+
+    function getValue(id) {
+      return document.getElementById(id)?.value || '';
+    }
+
+    function uniq(values) {
+      return Array.from(new Set(values.filter(nonEmpty)));
+    }
+
+    function avg(values) {
+      const valid = values.filter(v => typeof v === 'number' && !Number.isNaN(v));
+      return valid.length ? valid.reduce((a,b) => a + b, 0) / valid.length : 0;
+    }
+
+    function pct(value) {
+      return `${(value * 100).toFixed(1)}%`;
+    }
+
+    function num(value) {
+      return typeof value === 'number' && !Number.isNaN(value) ? value : 0;
+    }
+
+    function truncate(text, len = 90) {
+      const str = String(text || '');
+      return str.length > len ? `${str.slice(0, len - 1)}…` : str;
+    }
+
+    function getReview(item) {
+      return state.reviews[item.uid] || {};
+    }
+
+    function isReviewed(item) {
+      return nonEmpty(getReview(item).verdict);
+    }
+
+    function isPassVerdict(verdict) {
+      return verdict === 'Pass';
+    }
+
+    function llmPredPass(item) {
+      const byRts = (item.rts ?? 0) >= 0.7;
+      const byAcc = item.accurateFlag === null ? true : item.accurateFlag === 1;
+      return byRts && byAcc;
+    }
+
+    function smePass(item) {
+      return isReviewed(item) ? isPassVerdict(getReview(item).verdict) : item.accurateFlag === 1;
+    }
+
+    function getPriority(item) {
+      if ((item.rts ?? 0) < 0.5 || item.accurateFlag === 0) return 'P0';
+      if ((item.rts ?? 0) >= 0.5 && (item.rts ?? 0) < 0.7) return 'P1';
+      return 'P2';
+    }
+
+    function getPriorityClass(priority) {
+      return priority === 'P0' ? 'p0' : priority === 'P1' ? 'p1' : 'p2';
+    }
+
+    function getFailureCategory(item) {
+      const review = getReview(item);
+      if (review.verdict) {
+        if (review.verdict === 'FAIL-Retrieval') return 'Retrieval';
+        if (review.verdict === 'FAIL-Generation') return 'Generation';
+        if (review.verdict === 'FAIL-Content') return 'Content';
+        if (review.verdict === 'FAIL-Intent') return 'Intent';
+        if (review.verdict === 'BORDERLINE') return 'Borderline';
+        return 'Pass';
+      }
+      if (item.accurateFlag === 1 && (item.rts ?? 1) >= 0.7) return 'Pass';
+      if (item.intentResolution && item.intentResolution < 0.65) return 'Intent';
+      if (!nonEmpty(item.sourceArticles) && nonEmpty(item.articlesExpected)) return 'Retrieval';
+      if (item.coherence && item.coherence < 0.65) return 'Generation';
+      if (!nonEmpty(item.expectedResponse)) return 'Content';
+      if (String(item.apologyScore).toLowerCase().includes('apology')) return 'Intent';
+      return (item.rts ?? 1) < 0.7 ? 'Generation' : 'Content';
+    }
+
+    function isFailure(item) {
+      return getFailureCategory(item) !== 'Pass';
+    }
+
+    function getOverallPassRate() {
+      const reviewed = state.rows.filter(isReviewed);
+      if (reviewed.length) {
+        const passes = reviewed.filter(item => isPassVerdict(getReview(item).verdict)).length;
+        return reviewed.length ? passes / reviewed.length : 0;
+      }
+      const baseline = state.rows.filter(item => item.accurateFlag === 1).length;
+      return state.rows.length ? baseline / state.rows.length : 0;
+    }
+
+    function filteredExecRows() {
+      const lob = getValue('execLobFilter');
+      const pcy = getValue('execPcyFilter');
+      return state.rows.filter(item => (!lob || item.lob === lob) && (!pcy || item.pcy === pcy));
+    }
+
+    function renderExecutive() {
+      const overallPass = getOverallPassRate();
+      const reviewedCount = state.rows.filter(isReviewed).length;
+      const failures = state.rows.filter(isFailure).length;
+      const gdsCoverage = state.rows.length ? state.rows.filter(r => nonEmpty(r.gdsAnswer)).length / state.rows.length : 0;
+      const avgRts = avg(state.rows.map(r => r.rts));
+      document.getElementById('execKpis').innerHTML = [
+        kpiCard('Overall Pass Rate', pct(overallPass), 'var(--ms-green)', reviewedCount ? 'Using SME-reviewed verdicts' : 'Using accurate_flag fallback'),
+        kpiCard('Prompts Evaluated', state.rows.length, 'var(--ms-blue)', state.currentFileName || 'Imported workbook'),
+        kpiCard('Total Failures', failures, 'var(--ms-red)', `${state.rows.length - failures} passing or recovered`),
+        kpiCard('GDS SME Coverage', pct(gdsCoverage), 'var(--ms-orange)', `${state.rows.filter(r => nonEmpty(r.gdsAnswer)).length} prompts with GDS answers`),
+        kpiCard('Avg RTS Score', avgRts.toFixed(2), 'var(--ms-purple)', 'Average imported LLM score')
+      ].join('');
+
+      const scoped = filteredExecRows();
+      document.getElementById('execScopeLabel').textContent = `${scoped.length} prompts in current Executive Summary scope`;
+
+      const sbuLabels = uniq(scoped.map(r => r.sbu));
+      const sbuRates = sbuLabels.map(label => {
+        const items = scoped.filter(r => r.sbu === label);
+        return items.length ? items.filter(smePass).length / items.length * 100 : 0;
+      });
+      setChart('sbuPassChart', {
+        type: 'bar',
+        data: { labels: sbuLabels, datasets: [{ label: 'Pass Rate %', data: sbuRates, backgroundColor: '#0078D4' }] },
+        options: baseChartOptions({ yMax: 100 })
+      });
+
+      const failureCounts = groupCounts(scoped.filter(isFailure), item => getFailureCategory(item));
+      const failureLabels = Object.keys(failureCounts);
+      setChart('failureThemesChart', {
+        type: 'doughnut',
+        data: {
+          labels: failureLabels,
+          datasets: [{ data: failureLabels.map(label => failureCounts[label]), backgroundColor: ['#D13438','#FF8C00','#8661C5','#038387','#0078D4','#8A8886'] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+      });
+
+      const pcyLabels = uniq(scoped.map(r => r.pcy));
+      const pcyCounts = pcyLabels.map(label => scoped.filter(r => r.pcy === label).length);
+      const pcyRates = pcyLabels.map(label => {
+        const items = scoped.filter(r => r.pcy === label);
+        return items.length ? items.filter(smePass).length / items.length * 100 : 0;
+      });
+      setChart('pcyPerformanceChart', {
+        data: {
+          labels: pcyLabels,
+          datasets: [
+            { type: 'bar', label: 'Prompt Count', data: pcyCounts, backgroundColor: '#C7E0F4', yAxisID: 'yCount' },
+            { type: 'line', label: 'Pass Rate %', data: pcyRates, borderColor: '#107C10', backgroundColor: '#107C10', tension: 0.25, yAxisID: 'yRate' }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } },
+          scales: {
+            yCount: { beginAtZero: true, position: 'left', grid: { color: '#EEE' } },
+            yRate: { beginAtZero: true, max: 100, position: 'right', grid: { drawOnChartArea: false }, ticks: { callback: v => `${v}%` } }
+          }
+        }
+      });
+
+      const trendData = state.history.length ? state.history : [buildSnapshot('Current')];
+      setChart('accuracyTrendChart', {
+        type: 'line',
+        data: {
+          labels: trendData.map(s => s.label),
+          datasets: [{ label: 'Accuracy %', data: trendData.map(s => s.overallPassRate), borderColor: '#0078D4', backgroundColor: '#0078D4', tension: 0.25 }]
+        },
+        options: baseChartOptions({ yMax: 100 })
+      });
+    }
+
+    function renderFailureAnalysis() {
+      const sbuFilter = getValue('failureSbuFilter');
+      const catFilter = getValue('failureCategoryFilter');
+      const failures = state.rows.filter(item => isFailure(item) && (!sbuFilter || item.sbu === sbuFilter) && (!catFilter || getFailureCategory(item) === catFilter));
+      const pareto = Object.entries(groupCounts(failures, item => getFailureCategory(item))).sort((a,b) => b[1] - a[1]);
+      setChart('paretoChart', {
+        type: 'bar',
+        data: {
+          labels: pareto.map(([label]) => label),
+          datasets: [{
+            label: 'Frequency',
+            data: pareto.map(([,count]) => count),
+            backgroundColor: pareto.map((_, index) => index < 3 ? '#D13438' : '#FF8C00')
+          }]
+        },
+        options: { ...baseChartOptions(), indexAxis: 'y' }
+      });
+
+      const allSbus = uniq(failures.map(f => f.sbu));
+      const categories = uniq(failures.map(getFailureCategory));
+      setChart('failureSbuChart', {
+        type: 'bar',
+        data: {
+          labels: allSbus,
+          datasets: categories.map((cat, idx) => ({
+            label: cat,
+            data: allSbus.map(sbu => failures.filter(f => f.sbu === sbu && getFailureCategory(f) === cat).length),
+            backgroundColor: ['#D13438','#FF8C00','#8661C5','#038387','#605E5C'][idx % 5]
+          }))
+        },
+        options: { ...baseChartOptions(), scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } }
+      });
+
+      document.getElementById('failureTableBody').innerHTML = failures.sort(sortByPriority).map(item => `
+        <tr>
+          <td>${item.rowIndex}</td>
+          <td>${escapeHtml(item.sbu)}</td>
+          <td>${escapeHtml(item.pcy)}</td>
+          <td title="${escapeAttr(item.prompt)}">${escapeHtml(truncate(item.prompt, 90))}</td>
+          <td>${escapeHtml(getFailureCategory(item))}</td>
+          <td>${(item.rts ?? 0).toFixed(2)}</td>
+          <td><span class="badge ${getPriorityClass(getPriority(item))}">${getPriority(item)}</span></td>
+        </tr>`).join('') || '<tr><td colspan="7" class="muted">No failures in current filter scope.</td></tr>';
+    }
+
+    function renderTrends() {
+      renderSnapshotList();
+      const snapshots = state.history.length ? state.history : [buildSnapshot('Current')];
+      setChart('overallTrendChart', {
+        type: 'line',
+        data: { labels: snapshots.map(s => s.label), datasets: [{ label: 'Overall Accuracy %', data: snapshots.map(s => s.overallPassRate), borderColor: '#0078D4', backgroundColor: '#0078D4', tension: 0.25 }] },
+        options: baseChartOptions({ yMax: 100 })
+      });
+
+      const sbuLabels = uniq(snapshots.flatMap(s => Object.keys(s.sbuRates || {})));
+      setChart('sbuTrendChart', {
+        type: 'line',
+        data: {
+          labels: snapshots.map(s => s.label),
+          datasets: sbuLabels.map((sbu, idx) => ({
+            label: sbu,
+            data: snapshots.map(s => s.sbuRates?.[sbu] ?? null),
+            borderColor: ['#0078D4','#107C10','#8661C5','#FF8C00','#038387','#D13438'][idx % 6],
+            backgroundColor: ['#0078D4','#107C10','#8661C5','#FF8C00','#038387','#D13438'][idx % 6],
+            tension: 0.25
+          }))
+        },
+        options: baseChartOptions({ yMax: 100 })
+      });
+
+      const categories = uniq(snapshots.flatMap(s => Object.keys(s.failureCategories || {})));
+      setChart('failureShiftChart', {
+        type: 'bar',
+        data: {
+          labels: snapshots.map(s => s.label),
+          datasets: categories.map((cat, idx) => ({
+            label: cat,
+            data: snapshots.map(s => s.failureCategories?.[cat] ?? 0),
+            backgroundColor: ['#D13438','#FF8C00','#8661C5','#038387','#605E5C'][idx % 5]
+          }))
+        },
+        options: { ...baseChartOptions(), scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } }
+      });
+
+      const rows = [];
+      for (let i = 1; i < snapshots.length; i++) {
+        const prev = snapshots[i - 1];
+        const curr = snapshots[i];
+        const keys = uniq([...Object.keys(prev.sbuRates || {}), ...Object.keys(curr.sbuRates || {})]);
+        let improved = 0, regressed = 0, unchanged = 0;
+        keys.forEach(key => {
+          const delta = (curr.sbuRates?.[key] ?? 0) - (prev.sbuRates?.[key] ?? 0);
+          if (delta > 0.01) improved++;
+          else if (delta < -0.01) regressed++;
+          else unchanged++;
+        });
+        const net = curr.overallPassRate - prev.overallPassRate;
+        const status = net > 0.1 ? '<span class="badge pass">Improving</span>' : net < -0.1 ? '<span class="badge fail">Regression</span>' : '<span class="badge warn">Stable</span>';
+        rows.push(`<tr><td>${escapeHtml(prev.label)} → ${escapeHtml(curr.label)}</td><td>${improved}</td><td>${regressed}</td><td>${unchanged}</td><td>${net.toFixed(1)} pts</td><td>${status}</td></tr>`);
+      }
+      document.getElementById('regressionTableBody').innerHTML = rows.join('') || '<tr><td colspan="6" class="muted">Save at least two weekly snapshots to unlock run-over-run regression tracking.</td></tr>';
+    }
+
+    function renderSnapshotList() {
+      const list = document.getElementById('snapshotList');
+      if (!list) return;
+      list.innerHTML = state.history.map(s => `<span class="snapshot-chip">${escapeHtml(s.label)} · ${s.overallPassRate.toFixed(1)}%</span>`).join('') || '<span class="snapshot-chip">No weekly snapshots saved yet</span>';
+    }
+
+    function renderCalibration() {
+      const metrics = [
+        ['Relevance', avg(state.rows.map(r => r.relevance))],
+        ['Coherence', avg(state.rows.map(r => r.coherence))],
+        ['Fluency', avg(state.rows.map(r => r.fluency))],
+        ['IntentResolution', avg(state.rows.map(r => r.intentResolution))],
+        ['RTS', avg(state.rows.map(r => r.rts))]
+      ];
+      setChart('judgeDistributionChart', {
+        type: 'bar',
+        data: {
+          labels: metrics.map(m => m[0]),
+          datasets: [{
+            label: 'Average Score',
+            data: metrics.map(m => (m[1] * 100).toFixed(1)),
+            backgroundColor: metrics.map(m => m[1] >= 0.9 ? '#B3B0AD' : '#107C10')
+          }]
+        },
+        options: baseChartOptions({ yMax: 100 })
+      });
+
+      const reviewed = state.rows.filter(isReviewed);
+      const passItems = reviewed.filter(item => isPassVerdict(getReview(item).verdict));
+      const failItems = reviewed.filter(item => !isPassVerdict(getReview(item).verdict));
+      const disc = {
+        Relevance: Math.abs(avg(passItems.map(r => r.relevance)) - avg(failItems.map(r => r.relevance))) * 100,
+        Coherence: Math.abs(avg(passItems.map(r => r.coherence)) - avg(failItems.map(r => r.coherence))) * 100,
+        Fluency: Math.abs(avg(passItems.map(r => r.fluency)) - avg(failItems.map(r => r.fluency))) * 100,
+        Intent: Math.abs(avg(passItems.map(r => r.intentResolution)) - avg(failItems.map(r => r.intentResolution))) * 100,
+        RTS: Math.abs(avg(passItems.map(r => r.rts)) - avg(failItems.map(r => r.rts))) * 100
+      };
+      setChart('discriminationChart', {
+        type: 'radar',
+        data: {
+          labels: Object.keys(disc),
+          datasets: [{ label: 'Discrimination Power', data: Object.values(disc), backgroundColor: 'rgba(0,120,212,0.20)', borderColor: '#0078D4' }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, scales: { r: { beginAtZero: true, suggestedMax: 40 } } }
+      });
+
+      const matrix = { TP: 0, FP: 0, FN: 0, TN: 0 };
+      reviewed.forEach(item => {
+        const judge = llmPredPass(item);
+        const sme = isPassVerdict(getReview(item).verdict);
+        if (judge && sme) matrix.TP++;
+        else if (judge && !sme) matrix.FP++;
+        else if (!judge && sme) matrix.FN++;
+        else matrix.TN++;
+      });
+      document.getElementById('agreementMatrixBody').innerHTML = [
+        ['True Positive', matrix.TP, 'LLM judge predicted pass and SME agreed'],
+        ['False Positive', matrix.FP, 'LLM judge predicted pass but SME marked fail/borderline'],
+        ['False Negative', matrix.FN, 'LLM judge predicted fail but SME marked pass'],
+        ['True Negative', matrix.TN, 'LLM judge predicted fail and SME agreed']
+      ].map(([label, count, desc]) => `<tr><td>${label}</td><td>${count}</td><td>${desc}</td></tr>`).join('');
+
+      const disagreements = reviewed.filter(item => llmPredPass(item) !== isPassVerdict(getReview(item).verdict));
+      document.getElementById('disagreementTableBody').innerHTML = disagreements.slice(0, 15).map(item => {
+        const review = getReview(item);
+        return `<tr>
+          <td title="${escapeAttr(item.prompt)}">${escapeHtml(truncate(item.prompt, 90))}</td>
+          <td>${llmPredPass(item) ? '<span class="badge pass">Pass</span>' : '<span class="badge fail">Fail</span>'}</td>
+          <td>${escapeHtml(review.verdict || '—')}</td>
+          <td>${(item.rts ?? 0).toFixed(2)}</td>
+          <td>${escapeHtml(review.comments || item.comments || '—')}</td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="5" class="muted">No SME disagreements yet.</td></tr>';
+    }
+
+    function renderSignalTree() {
+      const retrieval = computeRetrievalScore();
+      const generation = avg(state.rows.map(r => avg([r.coherence, r.fluency])));
+      const content = avg([state.rows.length ? state.rows.filter(r => nonEmpty(r.expectedResponse)).length / state.rows.length : 0, avg(state.rows.map(r => r.relevance))]);
+      const impact = avg([avg(state.rows.map(r => r.intentResolution)), getOverallPassRate()]);
+      const response = avg([retrieval, generation, content, impact]);
+
+      setText('treeResponseQuality', pct(response));
+      setText('treeRetrieval', pct(retrieval));
+      setText('treeGeneration', pct(generation));
+      setText('treeContent', pct(content));
+      setText('treeImpact', pct(impact));
+      setText('leafCorrectRetrieval', pct(state.rows.length ? state.rows.filter(r => getRetrievalAssessmentValue(itemReview(r).retrievalAssessment) >= 0.8).length / state.rows.length : 0));
+      setText('leafGroundedness', pct(avg(state.rows.map(r => getGroundednessScore(itemReview(r).groundednessAssessment)))));
+      setText('leafCoherence', pct(avg(state.rows.map(r => r.coherence))));
+      setText('leafFluency', pct(avg(state.rows.map(r => r.fluency))));
+      setText('leafExpectedCoverage', pct(state.rows.length ? state.rows.filter(r => nonEmpty(r.expectedResponse)).length / state.rows.length : 0));
+      setText('leafRelevance', pct(avg(state.rows.map(r => r.relevance))));
+      setText('leafIntent', pct(avg(state.rows.map(r => r.intentResolution))));
+      setText('leafOverallPass', pct(getOverallPassRate()));
+
+      const labels = ['Retrieval','Generation','Content','Impact'];
+      const current = [retrieval, generation, content, impact].map(v => +(v * 100).toFixed(1));
+      const target = [90, 88, 90, 92];
+      setChart('signalRadarChart', {
+        type: 'radar',
+        data: { labels, datasets: [{ label: 'Current', data: current, backgroundColor: 'rgba(134,97,197,0.2)', borderColor: '#8661C5' }] },
+        options: { responsive: true, maintainAspectRatio: false, scales: { r: { beginAtZero: true, max: 100 } } }
+      });
+      setChart('signalTargetChart', {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [
+            { label: 'Current', data: current, backgroundColor: '#0078D4' },
+            { label: 'Target', data: target, backgroundColor: '#D0D0D0' }
+          ]
+        },
+        options: baseChartOptions({ yMax: 100 })
+      });
+    }
+
+    function renderSmeTab() {
+      const reviewed = state.rows.filter(isReviewed).length;
+      const p0 = state.rows.filter(item => getPriority(item) === 'P0').length;
+      const p1 = state.rows.filter(item => getPriority(item) === 'P1').length;
+      document.getElementById('smeKpis').innerHTML = [
+        kpiCard('P0 Count', p0, 'var(--ms-red)', 'Critical / highest priority'),
+        kpiCard('P1 Count', p1, 'var(--ms-orange)', 'Needs prompt follow-up'),
+        kpiCard('Reviews Completed', reviewed, 'var(--ms-green)', `${reviewed}/${state.rows.length} reviewed`),
+        kpiCard('Unreviewed Count', state.rows.length - reviewed, 'var(--ms-purple)', 'Remaining queue size')
+      ].join('');
+
+      const sbus = uniq(state.rows.map(r => r.sbu));
+      setChart('smeCoverageChart', {
+        type: 'bar',
+        data: {
+          labels: sbus,
+          datasets: [
+            { label: 'Reviewed', data: sbus.map(sbu => state.rows.filter(r => r.sbu === sbu && isReviewed(r)).length), backgroundColor: '#107C10' },
+            { label: 'Unreviewed', data: sbus.map(sbu => state.rows.filter(r => r.sbu === sbu && !isReviewed(r)).length), backgroundColor: '#C7E0F4' }
+          ]
+        },
+        options: { ...baseChartOptions(), scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } }
+      });
+
+      const taxonomyCounts = groupCounts(state.rows.filter(item => isFailure(item)), item => getFailureCategory(item));
+      setChart('smeTaxonomyChart', {
+        type: 'polarArea',
+        data: {
+          labels: Object.keys(taxonomyCounts),
+          datasets: [{ data: Object.values(taxonomyCounts), backgroundColor: ['#D13438','#FF8C00','#8661C5','#038387','#605E5C'] }]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+      });
+
+      renderSmeQueue();
+    }
+
+    function getSmeFilteredRows() {
+      const sbu = getValue('smeSbuFilter');
+      const pcy = getValue('smePcyFilter');
+      const priority = getValue('smePriorityFilter');
+      const status = getValue('smeStatusFilter');
+      return state.rows.filter(item => {
+        if (sbu && item.sbu !== sbu) return false;
+        if (pcy && item.pcy !== pcy) return false;
+        if (priority && getPriority(item) !== priority) return false;
+        if (status === 'Reviewed' && !isReviewed(item)) return false;
+        if (status === 'Unreviewed' && isReviewed(item)) return false;
+        return true;
+      }).sort(sortByPriority);
+    }
+
+    function renderSmeQueue() {
+      const items = getSmeFilteredRows();
+      const reviewerName = document.getElementById('reviewerName').value || '';
+      const container = document.getElementById('smeQueue');
+      container.innerHTML = items.map(item => {
+        const review = itemReview(item);
+        const priority = getPriority(item);
+        const reviewed = !!review.verdict;
+        const expanded = state.expandedCard === item.rowIndex;
+        const responseHtml = item.llmHtml || `<div style="white-space:pre-wrap">${escapeHtml(item.llmPlain || 'No LLM response available')}</div>`;
+        return `
+          <div class="sme-card ${reviewed ? 'reviewed' : ''} ${expanded ? 'expanded' : ''}" id="sme-card-${item.rowIndex}">
+            <div class="sme-card-header" onclick="toggleSmeCard(${item.rowIndex})">
+              <span class="sme-pri"><span class="badge ${getPriorityClass(priority)}">${priority}</span></span>
+              <span class="sme-id">${escapeHtml(item.displayId || `Q-${String(item.rowIndex).padStart(3, '0')}`)}</span>
+              <span class="sme-sbu" style="background:#E8E8E8;padding:2px 8px;border-radius:10px">${escapeHtml(item.sbu)}</span>
+              <span class="sme-question" title="${escapeAttr(item.prompt)}">${escapeHtml(truncate(item.prompt, 120))}</span>
+              <span class="sme-rts" style="font-weight:700;color:${priority === 'P0' ? '#D13438' : priority === 'P1' ? '#FF8C00' : '#107C10'}">${(item.rts ?? 0).toFixed(2)}</span>
+              <span class="sme-status-icon">${reviewed ? '✅' : '⏳'}</span>
+            </div>
+            <div class="sme-card-body">
+              <div class="response-box">${responseHtml}</div>
+              <div class="meta-grid">
+                <div class="meta-pill"><strong>Failure Category</strong>${escapeHtml(getFailureCategory(item))}</div>
+                <div class="meta-pill"><strong>PCY</strong>${escapeHtml(item.pcy)}</div>
+                <div class="meta-pill"><strong>LOB</strong>${escapeHtml(item.lob)}</div>
+                <div class="meta-pill"><strong>Case ID</strong>${escapeHtml(item.caseId)}</div>
+              </div>
+              <div class="sme-form-row">
+                <label class="inline-label">SME Verdict
+                  <select id="verdict-${item.rowIndex}" onchange="persistDraft(${item.rowIndex})">
+                    ${selectOptions(['Pass','FAIL-Retrieval','FAIL-Generation','FAIL-Content','FAIL-Intent','BORDERLINE'], review.verdict)}
+                  </select>
+                </label>
+                <label class="inline-label">Retrieval Assessment
+                  <select id="retrieval-${item.rowIndex}" onchange="persistDraft(${item.rowIndex})">
+                    ${selectOptions(['Correct','Partial','Wrong','None'], review.retrievalAssessment)}
+                  </select>
+                </label>
+              </div>
+              <div class="sme-form-row">
+                <label class="inline-label">Accuracy Assessment
+                  <select id="accuracy-${item.rowIndex}" onchange="persistDraft(${item.rowIndex})">
+                    ${selectOptions(['Fully accurate','Mostly','Missing steps','Incorrect','Hallucination'], review.accuracyAssessment)}
+                  </select>
+                </label>
+                <label class="inline-label">Groundedness Assessment
+                  <select id="groundedness-${item.rowIndex}" onchange="persistDraft(${item.rowIndex})">
+                    ${selectOptions(['Fully grounded','Mostly','Not grounded'], review.groundednessAssessment)}
+                  </select>
+                </label>
+              </div>
+              <label class="inline-label" style="display:block;margin-bottom:14px;">Expected / Correct Answer
+                <textarea id="expected-${item.rowIndex}" oninput="persistDraft(${item.rowIndex})">${escapeHtml(review.expectedAnswer || item.expectedResponse || '')}</textarea>
+              </label>
+              <div class="sme-form-row">
+                <label class="inline-label">Correct KB Article URL
+                  <input type="url" id="kburl-${item.rowIndex}" value="${escapeAttr(review.kbArticleUrl || item.sourceArticles || '')}" oninput="persistDraft(${item.rowIndex})" placeholder="https://..." />
+                </label>
+                <label class="inline-label">Additional Comments
+                  <input type="text" id="comments-${item.rowIndex}" value="${escapeAttr(review.comments || item.comments || '')}" oninput="persistDraft(${item.rowIndex})" placeholder="Add reviewer notes" />
+                </label>
+              </div>
+              <div class="sme-actions">
+                <button class="btn btn-success" onclick="event.stopPropagation(); saveReview(${item.rowIndex}, false)">💾 Save Review</button>
+                <button class="btn btn-primary" onclick="event.stopPropagation(); saveReview(${item.rowIndex}, true)">Save &amp; Next →</button>
+                <button class="btn btn-secondary" onclick="event.stopPropagation(); collapseCard()">Collapse</button>
+                <span class="saved-indicator ${state.flashSavedUid === item.uid ? 'show' : ''}">✓ Saved</span>
+                <span class="muted small">Reviewer: ${escapeHtml(review.reviewer || reviewerName || item.taReviewer || 'Unassigned')}</span>
+              </div>
+            </div>
+          </div>`;
+      }).join('') || '<div class="muted">No items match the current SME filters.</div>';
+    }
+
+    function itemReview(item) {
+      return getReview(item);
+    }
+
+    function collectCardReview(rowIndex) {
+      const item = state.rows.find(r => r.rowIndex === rowIndex);
+      if (!item) return null;
+      return {
+        reviewer: document.getElementById('reviewerName').value || item.taReviewer || '',
+        verdict: getValue(`verdict-${rowIndex}`),
+        retrievalAssessment: getValue(`retrieval-${rowIndex}`),
+        accuracyAssessment: getValue(`accuracy-${rowIndex}`),
+        groundednessAssessment: getValue(`groundedness-${rowIndex}`),
+        expectedAnswer: document.getElementById(`expected-${rowIndex}`)?.value || '',
+        kbArticleUrl: document.getElementById(`kburl-${rowIndex}`)?.value || '',
+        comments: document.getElementById(`comments-${rowIndex}`)?.value || '',
+        updatedAt: new Date().toISOString()
+      };
+    }
+
+    function persistDraft(rowIndex) {
+      const item = state.rows.find(r => r.rowIndex === rowIndex);
+      if (!item) return;
+      state.reviews[item.uid] = { ...(state.reviews[item.uid] || {}), ...collectCardReview(rowIndex), draft: true };
+      saveJson(LS_REVIEWS, state.reviews);
+    }
+
+    function saveReview(rowIndex, moveNext) {
+      const item = state.rows.find(r => r.rowIndex === rowIndex);
+      if (!item) return;
+      state.reviews[item.uid] = { ...(state.reviews[item.uid] || {}), ...collectCardReview(rowIndex), draft: false, savedAt: new Date().toISOString() };
+      saveJson(LS_REVIEWS, state.reviews);
+      state.flashSavedUid = item.uid;
+      const filtered = getSmeFilteredRows();
+      if (moveNext) {
+        const idx = filtered.findIndex(r => r.rowIndex === rowIndex);
+        state.expandedCard = filtered[idx + 1] ? filtered[idx + 1].rowIndex : rowIndex;
+      }
+      renderAll();
+      setTimeout(() => {
+        state.flashSavedUid = null;
+        renderSmeQueue();
+      }, 1200);
+      scrollExpandedCard();
+    }
+
+    function scrollExpandedCard() {
+      setTimeout(() => {
+        const el = document.getElementById(`sme-card-${state.expandedCard}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 50);
+    }
+
+    function collapseCard() {
+      state.expandedCard = null;
+      renderSmeQueue();
+    }
+
+    function renderGdsCoverage() {
+      const lobFilter = getValue('gdsLobFilter');
+      const rows = state.rows.filter(item => !lobFilter || item.lob === lobFilter);
+      const withGds = rows.filter(r => nonEmpty(r.gdsAnswer)).length;
+      const withExpected = rows.filter(r => nonEmpty(r.expectedResponse)).length;
+      const withArticles = rows.filter(r => nonEmpty(r.sourceArticles)).length;
+      const promptsNeeded = rows.filter(r => !nonEmpty(r.gdsAnswer)).length;
+      document.getElementById('gdsKpis').innerHTML = [
+        kpiCard('GDS Target', rows.length, 'var(--ms-blue)', 'Total prompts in scope'),
+        kpiCard('Current Prompts', rows.length, 'var(--ms-green)', 'Imported prompt count'),
+        kpiCard('With Expected Answers', withExpected, 'var(--ms-orange)', `${rows.length ? pct(withExpected / rows.length) : '0.0%'} coverage`),
+        kpiCard('With Article Citations', withArticles, 'var(--ms-purple)', `${rows.length ? pct(withArticles / rows.length) : '0.0%'} grounded`),
+        kpiCard('Prompts Needed', promptsNeeded, 'var(--ms-red)', 'Missing GDS answers')
+      ].join('');
+
+      const lobs = uniq(rows.map(r => r.lob));
+      setChart('gdsLobChart', {
+        type: 'bar',
+        data: {
+          labels: lobs,
+          datasets: [
+            { label: 'Target', data: lobs.map(lob => rows.filter(r => r.lob === lob).length), backgroundColor: '#D0D0D0' },
+            { label: 'Actual GDS Answer', data: lobs.map(lob => rows.filter(r => r.lob === lob && nonEmpty(r.gdsAnswer)).length), backgroundColor: '#0078D4' }
+          ]
+        },
+        options: baseChartOptions()
+      });
+
+      const complete = rows.filter(r => nonEmpty(r.gdsAnswer) && nonEmpty(r.expectedResponse) && nonEmpty(r.sourceArticles)).length;
+      const partial = rows.filter(r => [r.gdsAnswer, r.expectedResponse, r.sourceArticles].filter(nonEmpty).length > 0 && [r.gdsAnswer, r.expectedResponse, r.sourceArticles].filter(nonEmpty).length < 3).length;
+      const promptOnly = rows.length - complete - partial;
+      setChart('gdsCompletenessChart', {
+        type: 'doughnut',
+        data: { labels: ['Complete','Partial','Prompt-only'], datasets: [{ data: [complete, partial, promptOnly], backgroundColor: ['#107C10','#FF8C00','#C7E0F4'] }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+      });
+
+      const groups = {};
+      rows.forEach(r => {
+        const key = `${r.lob}|||${r.pcy}`;
+        groups[key] ||= { lob: r.lob, pcy: r.pcy, total: 0, expected: 0, articles: 0 };
+        groups[key].total++;
+        if (nonEmpty(r.expectedResponse)) groups[key].expected++;
+        if (nonEmpty(r.sourceArticles)) groups[key].articles++;
+      });
+      document.getElementById('gdsCoverageTableBody').innerHTML = Object.values(groups).sort((a,b) => a.lob.localeCompare(b.lob) || a.pcy.localeCompare(b.pcy)).map(group => `
+        <tr>
+          <td>${escapeHtml(group.lob)}</td>
+          <td>${escapeHtml(group.pcy)}</td>
+          <td>${group.total}</td>
+          <td>${group.expected}</td>
+          <td>${group.articles}</td>
+          <td>${((group.expected + group.articles) / (group.total * 2) * 100).toFixed(1)}%</td>
+        </tr>`).join('') || '<tr><td colspan="6" class="muted">No GDS coverage rows available.</td></tr>';
+    }
+
+    function renderGaps() {
+      const reviewed = state.rows.filter(isReviewed).length;
+      const unresolvedP0 = state.rows.filter(item => getPriority(item) === 'P0' && !isReviewed(item)).length;
+      const unresolvedP1 = state.rows.filter(item => getPriority(item) === 'P1' && !isReviewed(item)).length;
+      const missingExpected = state.rows.filter(item => !nonEmpty(item.expectedResponse)).length;
+      const missingArticles = state.rows.filter(item => !nonEmpty(item.sourceArticles)).length;
+      const disagreements = state.rows.filter(item => isReviewed(item) && llmPredPass(item) !== isPassVerdict(getReview(item).verdict)).length;
+      const gapData = [
+        ['Unreviewed P0', unresolvedP0],
+        ['Unreviewed P1', unresolvedP1],
+        ['Missing Expected Answers', missingExpected],
+        ['Missing Citations', missingArticles],
+        ['Judge/SME Disagreements', disagreements]
+      ];
+      setChart('gapSeverityChart', {
+        type: 'bar',
+        data: { labels: gapData.map(g => g[0]), datasets: [{ label: 'Gap Count', data: gapData.map(g => g[1]), backgroundColor: ['#D13438','#FF8C00','#8661C5','#038387','#605E5C'] }] },
+        options: { ...baseChartOptions(), indexAxis: 'y' }
+      });
+
+      const checklistItems = [
+        [reviewed === state.rows.length, 'SME review queue fully closed'],
+        [missingExpected === 0, 'Expected answers complete for all prompts'],
+        [missingArticles === 0, 'Source article grounding complete'],
+        [state.history.length > 0, 'At least one weekly snapshot saved'],
+        [disagreements <= Math.max(1, Math.floor(state.rows.length * 0.1)), 'Calibration disagreement rate under 10%']
+      ];
+      document.getElementById('implementationChecklist').innerHTML = checklistItems.map(([done, label]) => `
+        <div class="check-item"><span class="${done ? 'icon-pass' : 'icon-pending'}">${done ? '✓' : '○'}</span><span>${escapeHtml(label)}</span></div>`).join('');
+
+      const gaps = [
+        ['Critical review backlog', `${unresolvedP0} P0 items still await SME closure.`, 'Triage P0 cards first and enforce same-day review completion.', 'SME Lead', unresolvedP0 ? 'Open' : 'Closed'],
+        ['Priority review backlog', `${unresolvedP1} P1 items remain pending.`, 'Use Save & Next workflow to clear medium-priority queue within 24 hours.', 'TA Reviewer', unresolvedP1 ? 'Open' : 'Closed'],
+        ['Expected answer coverage', `${missingExpected} prompts lack expected / correct answers.`, 'Backfill high-volume PCYs first and include canonical phrasing.', 'Knowledge Engineering', missingExpected ? 'In Progress' : 'Closed'],
+        ['Citation grounding gap', `${missingArticles} prompts lack article URLs.`, 'Attach KB URLs for retrieval auditing and fine-tuning traceability.', 'Content Ops', missingArticles ? 'In Progress' : 'Closed'],
+        ['Calibration drift', `${disagreements} SME-reviewed items disagree with LLM judge outcome.`, 'Tune thresholds and analyze false positives / false negatives weekly.', 'Eval Ops', disagreements ? 'Monitor' : 'Healthy']
+      ];
+      document.getElementById('gapAnalysisBody').innerHTML = gaps.map(([gap, impact, fix, owner, status]) => `
+        <tr>
+          <td>${gap}</td>
+          <td>${impact}</td>
+          <td>${fix}</td>
+          <td>${owner}</td>
+          <td>${statusBadge(status)}</td>
+        </tr>`).join('');
+    }
+
+    function computeRetrievalScore() {
+      const reviewedScores = state.rows.map(item => getRetrievalAssessmentValue(itemReview(item).retrievalAssessment)).filter(v => v !== null);
+      if (reviewedScores.length) return avg(reviewedScores);
+      const fallback = state.rows.map(item => nonEmpty(item.sourceArticles) ? 1 : item.accurateFlag === 1 ? 0.7 : 0.35);
+      return avg(fallback);
+    }
+
+    function getRetrievalAssessmentValue(value) {
+      if (value === 'Correct') return 1;
+      if (value === 'Partial') return 0.6;
+      if (value === 'Wrong') return 0.2;
+      if (value === 'None') return 0;
+      return null;
+    }
+
+    function getGroundednessScore(value) {
+      if (value === 'Fully grounded') return 1;
+      if (value === 'Mostly') return 0.7;
+      if (value === 'Not grounded') return 0.2;
+      return nonEmpty(value) ? 0.5 : 0;
+    }
+
+    function saveCurrentSnapshot() {
+      if (!state.rows.length) return;
+      const label = document.getElementById('snapshotLabel').value.trim() || defaultSnapshotLabel();
+      state.history.push(buildSnapshot(label));
+      saveJson(LS_HISTORY, state.history);
+      renderAll();
+    }
+
+    function clearSnapshots() {
+      state.history = [];
+      saveJson(LS_HISTORY, state.history);
+      renderAll();
+    }
+
+    function buildSnapshot(label) {
+      const sbuRates = {};
+      uniq(state.rows.map(r => r.sbu)).forEach(sbu => {
+        const items = state.rows.filter(r => r.sbu === sbu);
+        sbuRates[sbu] = items.length ? items.filter(smePass).length / items.length * 100 : 0;
+      });
+      const failureCategories = groupCounts(state.rows.filter(isFailure), item => getFailureCategory(item));
+      return {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2,7)}`,
+        label,
+        createdAt: new Date().toISOString(),
+        total: state.rows.length,
+        overallPassRate: getOverallPassRate() * 100,
+        sbuRates,
+        failureCategories
+      };
+    }
+
+    function defaultSnapshotLabel() {
+      return `Week Snapshot - ${new Date().toISOString().slice(0, 10)}`;
+    }
+
+    function exportReviewsCsv() {
+      const reviewed = state.rows.filter(isReviewed).map(item => ({
+        CaseID: item.caseId,
+        prompt: item.prompt,
+        LOB: item.lob,
+        PCY: item.pcy,
+        SBU: item.sbu,
+        RTS: item.rts,
+        accurate_flag: item.accurateFlag,
+        reviewer: getReview(item).reviewer || '',
+        verdict: getReview(item).verdict || '',
+        retrieval_assessment: getReview(item).retrievalAssessment || '',
+        accuracy_assessment: getReview(item).accuracyAssessment || '',
+        groundedness_assessment: getReview(item).groundednessAssessment || '',
+        expected_answer: getReview(item).expectedAnswer || '',
+        kb_article_url: getReview(item).kbArticleUrl || '',
+        comments: getReview(item).comments || '',
+        saved_at: getReview(item).savedAt || ''
+      }));
+      if (!reviewed.length) return alert('No reviewed items available to export.');
+      downloadBlob(csvBlob(reviewed), 'sme-reviewed-items.csv');
+    }
+
+    function exportFineTuneJsonl() {
+      const reviewed = state.rows.filter(isReviewed);
+      if (!reviewed.length) return alert('Review at least one item before exporting fine-tuning JSONL.');
+      const lines = reviewed.map(item => {
+        const review = getReview(item);
+        const answer = isPassVerdict(review.verdict)
+          ? stripHtml(item.llmHtml || item.llmPlain)
+          : (review.expectedAnswer || item.expectedResponse || item.gdsAnswer || stripHtml(item.llmHtml || item.llmPlain));
+        return JSON.stringify({
+          messages: [
+            { role: 'user', content: item.prompt },
+            { role: 'assistant', content: answer }
+          ],
+          metadata: {
+            caseId: item.caseId,
+            lob: item.lob,
+            pcy: item.pcy,
+            sbu: item.sbu,
+            verdict: review.verdict,
+            reviewer: review.reviewer || ''
+          }
+        });
+      }).join('\n');
+      downloadBlob(new Blob([lines], { type: 'application/jsonl' }), 'sme-fine-tuning.jsonl');
+    }
+
+    function exportWorkbook() {
+      if (!state.rows.length) return;
+      const wb = XLSX.utils.book_new();
+      const summary = [
+        ['Metric', 'Value'],
+        ['Prompts Evaluated', state.rows.length],
+        ['Overall Pass Rate', +(getOverallPassRate() * 100).toFixed(1)],
+        ['Total Failures', state.rows.filter(isFailure).length],
+        ['Reviewed Items', state.rows.filter(isReviewed).length],
+        ['Avg RTS Score', +avg(state.rows.map(r => r.rts)).toFixed(3)],
+        ['GDS Coverage', +(state.rows.filter(r => nonEmpty(r.gdsAnswer)).length / Math.max(1, state.rows.length) * 100).toFixed(1)]
+      ];
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summary), 'Summary');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.rows.map(item => ({
+        CaseID: item.caseId,
+        prompt: item.prompt,
+        LOB: item.lob,
+        PCY: item.pcy,
+        SBU: item.sbu,
+        llm_plain: item.llmPlain,
+        llm_html: stripHtml(item.llmHtml),
+        relevance: item.relevance,
+        coherence: item.coherence,
+        fluency: item.fluency,
+        intent_resolution: item.intentResolution,
+        rts: item.rts,
+        accurate_flag: item.accurateFlag,
+        gds_answer: item.gdsAnswer,
+        expected_response: item.expectedResponse,
+        source_articles: item.sourceArticles,
+        priority: getPriority(item),
+        failure_category: getFailureCategory(item),
+        reviewer: getReview(item).reviewer || '',
+        verdict: getReview(item).verdict || '',
+        retrieval_assessment: getReview(item).retrievalAssessment || '',
+        accuracy_assessment: getReview(item).accuracyAssessment || '',
+        groundedness_assessment: getReview(item).groundednessAssessment || '',
+        sme_expected_answer: getReview(item).expectedAnswer || '',
+        kb_article_url: getReview(item).kbArticleUrl || '',
+        reviewer_comments: getReview(item).comments || '',
+        review_saved_at: getReview(item).savedAt || ''
+      }))), 'All Data');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.rows.filter(isReviewed).map(item => ({
+        CaseID: item.caseId,
+        prompt: item.prompt,
+        reviewer: getReview(item).reviewer || '',
+        verdict: getReview(item).verdict || '',
+        expected_answer: getReview(item).expectedAnswer || '',
+        comments: getReview(item).comments || '',
+        saved_at: getReview(item).savedAt || ''
+      }))), 'SME Reviews');
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.history), 'Weekly History');
+      XLSX.writeFile(wb, 'sme-eval-review-export.xlsx');
+    }
+
+    function handleSmeHotkeys(event) {
+      if (state.activeTab !== 'sme' || !state.expandedCard) return;
+      const tag = document.activeElement?.tagName;
+      const isTyping = ['INPUT','TEXTAREA','SELECT'].includes(tag);
+      if (isTyping) return;
+      if (event.key === '1') setVerdictShortcut('Pass');
+      if (event.key === '2') setVerdictShortcut('FAIL-Retrieval');
+      if (event.key === '3') setVerdictShortcut('BORDERLINE');
+    }
+
+    function setVerdictShortcut(value) {
+      const select = document.getElementById(`verdict-${state.expandedCard}`);
+      if (!select) return;
+      select.value = value;
+      persistDraft(state.expandedCard);
+    }
+
+    function sortByPriority(a, b) {
+      const order = { P0: 0, P1: 1, P2: 2 };
+      const priDiff = order[getPriority(a)] - order[getPriority(b)];
+      if (priDiff !== 0) return priDiff;
+      return (a.rts ?? 1) - (b.rts ?? 1);
+    }
+
+    function groupCounts(items, fn) {
+      return items.reduce((acc, item) => {
+        const key = fn(item);
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {});
+    }
+
+    function kpiCard(label, value, color, sub) {
+      return `<div class="kpi-card" style="border-left-color:${color}"><div class="kpi-label">${label}</div><div class="kpi-value">${value}</div><div class="kpi-sub">${sub}</div></div>`;
+    }
+
+    function statusBadge(status) {
+      const lower = String(status).toLowerCase();
+      const cls = lower.includes('closed') || lower.includes('healthy') ? 'pass' : lower.includes('open') ? 'fail' : 'warn';
+      return `<span class="badge ${cls}">${status}</span>`;
+    }
+
+    function setText(id, value) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = value;
+    }
+
+    function selectOptions(options, selected) {
+      return ['<option value="">Select</option>'].concat(options.map(opt => `<option value="${escapeAttr(opt)}" ${selected === opt ? 'selected' : ''}>${escapeHtml(opt)}</option>`)).join('');
+    }
+
+    function setChart(id, config) {
+      if (state.charts[id]) state.charts[id].destroy();
+      const ctx = document.getElementById(id);
+      if (!ctx) return;
+      state.charts[id] = new Chart(ctx, config);
+    }
+
+    function baseChartOptions(extra = {}) {
+      return {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom' } },
+        scales: {
+          x: { grid: { display: false } },
+          y: {
+            beginAtZero: true,
+            max: extra.yMax,
+            grid: { color: '#EEE' },
+            ticks: extra.yMax ? { callback: v => extra.yMax === 100 ? `${v}%` : v } : {}
+          }
+        }
+      };
+    }
+
+    function csvBlob(rows) {
+      const headers = Object.keys(rows[0]);
+      const lines = [headers.join(',')].concat(rows.map(row => headers.map(h => csvEscape(row[h])).join(',')));
+      return new Blob([lines.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+    }
+
+    function csvEscape(value) {
+      const str = String(value ?? '');
+      return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+    }
+
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function stripHtml(html) {
+      const div = document.createElement('div');
+      div.innerHTML = html || '';
+      return div.textContent || div.innerText || '';
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value).replace(/`/g, '&#96;');
+    }
+
+    window.toggleTree = function(id) {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('open');
+    };
+
+    window.toggleSmeCard = function(rowIndex) {
+      if (state.expandedCard && state.expandedCard !== rowIndex) persistDraft(state.expandedCard);
+      state.expandedCard = state.expandedCard === rowIndex ? null : rowIndex;
+      renderSmeQueue();
+      if (state.expandedCard) scrollExpandedCard();
+    };
+
+    window.persistDraft = persistDraft;
+    window.saveReview = saveReview;
+    window.collapseCard = collapseCard;
+  </script>
+</body>
+</html>
